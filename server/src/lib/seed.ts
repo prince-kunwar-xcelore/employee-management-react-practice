@@ -1,7 +1,5 @@
-import { PrismaClient } from '@prisma/client';
 import bcrypt from 'bcryptjs';
-
-const prisma = new PrismaClient();
+import { prisma } from './prisma';
 
 const users = [
   { email: 'admin@rbac.dev', password: 'admin123', name: 'Admin User', role: 'admin' },

@@ -1,5 +1,4 @@
 import { Router } from 'express';
-import { PrismaClient } from '@prisma/client';
 import bcrypt from 'bcryptjs';
 import {
   CreateUserRequestSchema,
@@ -9,9 +8,9 @@ import {
 } from '@rbac/shared';
 import type { Role } from '@rbac/shared';
 import { requireAuth } from '../middleware/auth';
+import { prisma } from '../lib/prisma';
 
 const router = Router();
-const prisma = new PrismaClient();
 
 router.use(requireAuth);
 

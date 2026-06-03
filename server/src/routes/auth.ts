@@ -1,10 +1,9 @@
 import { Router } from 'express';
-import { PrismaClient } from '@prisma/client';
 import bcrypt from 'bcryptjs';
 import { LoginRequestSchema } from '@rbac/shared';
+import { prisma } from '../lib/prisma';
 
 const router = Router();
-const prisma = new PrismaClient();
 
 router.post('/login', async (req, res) => {
   const parsed = LoginRequestSchema.safeParse(req.body);
