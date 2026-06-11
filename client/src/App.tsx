@@ -1,7 +1,6 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { useAuth } from './hooks/useAuth';
-// import Login from './pages/Login';
-// import Dashboard from './pages/Dashboard';
+import Login from './pages/Login';
 
 function Protected({ children }: { children: React.ReactNode }) {
   const { user, loading } = useAuth();
@@ -24,7 +23,7 @@ export default function App() {
           element={
             <PublicOnly>
               {/* Replace with: <Login /> */}
-              <div>Login page</div>
+              <Login />
             </PublicOnly>
           }
         />
