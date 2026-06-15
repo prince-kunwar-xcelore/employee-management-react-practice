@@ -58,5 +58,10 @@ export const ManageableRolesResponseSchema = z.object({
 });
 export type ManageableRolesResponse = z.infer<typeof ManageableRolesResponseSchema>;
 
+export const StatsResponseSchema = z.object({
+  stats: z.record(z.enum(ROLES), z.number()),
+});
+export type StatsResponse = z.infer<typeof StatsResponseSchema>;
+
 export const ErrorResponseSchema = z.object({ error: z.string() });
 export type ErrorResponse = z.infer<typeof ErrorResponseSchema>;

@@ -19,6 +19,24 @@ router.get('/meta/roles', (req, res) => {
   res.json({ roles: getManageableRoles(req.session.role as Role) });
 });
 
+router.get('/meta/stats', async (req, res) => {
+  const actorRole = req.session.role as Role;
+  const manageableRoles = getManageableRoles(actorRole);
+
+  if (manageableRoles.length === 0) {
+    return res.json({ stats: {} });
+  }
+
+  const counts = await prisma.user.groupBy({
+    by: ['role'],
+    _count: { id: true },
+    where: { role: { in: manageableRoles } },
+  });
+
+  const stats = Object.fromEntries(counts.map((r) => [r.role, r._count.id]));
+  res.json({ stats });
+});
+
 router.get('/', async (req, res) => {
   const actorRole = req.session.role as Role;
   const users = await prisma.user.findMany({
