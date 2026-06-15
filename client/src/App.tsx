@@ -1,6 +1,8 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { useAuth } from './hooks/useAuth';
 import Login from './pages/Login';
+import Dashboard from './pages/Dashboard';
+import Shell from './layouts/shell';
 
 function Protected({ children }: { children: React.ReactNode }) {
   const { user, loading } = useAuth();
@@ -22,20 +24,26 @@ export default function App() {
           path="/login"
           element={
             <PublicOnly>
-              {/* Replace with: <Login /> */}
               <Login />
             </PublicOnly>
           }
         />
         <Route
-          path="/*"
           element={
             <Protected>
-              {/* Replace with: <Dashboard /> */}
-              <div>Dashboard</div>
+              <Shell />
             </Protected>
           }
-        />
+        >
+          <Route path="/" element={<Dashboard />} />
+          <Route path="/about" element={<Dashboard />} />
+
+          <Route path="/managers" element={<Dashboard />} />
+
+          <Route path="/team-leads" element={<Dashboard />} />
+
+          <Route path="/employees" element={<Dashboard />} />
+        </Route>
       </Routes>
     </BrowserRouter>
   );
