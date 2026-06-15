@@ -6,6 +6,7 @@ import type {
   User,
   UsersListResponse,
   ManageableRolesResponse,
+  StatsResponse,
 } from '@rbac/shared';
 
 async function req<Res>(path: string, options?: RequestInit): Promise<Res> {
@@ -22,7 +23,10 @@ async function req<Res>(path: string, options?: RequestInit): Promise<Res> {
 export const api = {
   auth: {
     login: (body: LoginRequest) =>
-      req<LoginResponse>('/auth/login', { method: 'POST', body: JSON.stringify(body) }),
+      req<LoginResponse>('/auth/login', {
+        method: 'POST',
+        body: JSON.stringify(body),
+      }),
     logout: () => req<{ ok: true }>('/auth/logout', { method: 'POST' }),
     me: () => req<LoginResponse>('/auth/me'),
   },
@@ -31,8 +35,13 @@ export const api = {
     create: (body: CreateUserRequest) =>
       req<User>('/users', { method: 'POST', body: JSON.stringify(body) }),
     update: (id: number, body: UpdateUserRequest) =>
-      req<User>(`/users/${id}`, { method: 'PATCH', body: JSON.stringify(body) }),
-    delete: (id: number) => req<{ ok: true }>(`/users/${id}`, { method: 'DELETE' }),
+      req<User>(`/users/${id}`, {
+        method: 'PATCH',
+        body: JSON.stringify(body),
+      }),
+    delete: (id: number) =>
+      req<{ ok: true }>(`/users/${id}`, { method: 'DELETE' }),
     manageableRoles: () => req<ManageableRolesResponse>('/users/meta/roles'),
+    stats: () => req<StatsResponse>('/users/meta/stats'),
   },
 };

@@ -11,7 +11,10 @@ import {
 import { User } from 'lucide-react';
 import { Link, useLocation } from 'react-router-dom';
 
-const routes = [
+const routes: {
+  name?: string;
+  href: string;
+}[] = [
   {
     name: 'Home',
     href: '/',
@@ -56,7 +59,9 @@ export default function AppSidebar() {
                   isActive={location.pathname === route.href}
                   className="data-[active=true]:bg-sidebar-primary data-[active=true]:text-sidebar-primary-foreground"
                 >
-                  <Link to={route.href}>{route.name}</Link>
+                  <Link to={route.href} state={route.name}>
+                    {route.name}
+                  </Link>
                   {/* {route.name} */}
                 </SidebarMenuButton>
               </SidebarMenuItem>
