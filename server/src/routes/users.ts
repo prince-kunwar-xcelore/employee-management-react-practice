@@ -3,6 +3,7 @@ import bcrypt from 'bcryptjs';
 import {
   CreateUserRequestSchema,
   UpdateUserRequestSchema,
+  UsersListQuerySchema,
   canManage,
   getManageableRoles,
 } from '@rbac/shared';
@@ -39,17 +40,34 @@ router.get('/meta/stats', async (req, res) => {
 
 router.get('/', async (req, res) => {
   const actorRole = req.session.role as Role;
+  const manageableRoles = getManageableRoles(actorRole);
+
+  if (manageableRoles.length === 0) return res.json([]);
+
+  const parsed = UsersListQuerySchema.safeParse(req.query);
+  const { role, search } = parsed.success ? parsed.data : {};
+
+  const roleFilter =
+    role && manageableRoles.includes(role) ? role : undefined;
+
   const users = await prisma.user.findMany({
+    where: {
+      role: roleFilter ? roleFilter : { in: manageableRoles },
+      ...(search && {
+        OR: [
+          { name: { contains: search, mode: 'insensitive' } },
+          { email: { contains: search, mode: 'insensitive' } },
+        ],
+      }),
+    },
     include: { manager: { select: { id: true, name: true, role: true } } },
   });
 
-  const result = users
-    .filter((u) => canManage(actorRole, u.role as Role))
-    .map(({ password: _, createdAt, updatedAt, ...rest }) => ({
-      ...rest,
-      createdAt: createdAt.toISOString(),
-      updatedAt: updatedAt.toISOString(),
-    }));
+  const result = users.map(({ password: _, createdAt, updatedAt, ...rest }) => ({
+    ...rest,
+    createdAt: createdAt.toISOString(),
+    updatedAt: updatedAt.toISOString(),
+  }));
 
   res.json(result);
 });

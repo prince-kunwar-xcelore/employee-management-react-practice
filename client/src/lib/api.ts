@@ -3,6 +3,7 @@ import type {
   LoginResponse,
   CreateUserRequest,
   UpdateUserRequest,
+  UsersListQuery,
   User,
   UsersListResponse,
   ManageableRolesResponse,
@@ -31,7 +32,13 @@ export const api = {
     me: () => req<LoginResponse>('/auth/me'),
   },
   users: {
-    list: () => req<UsersListResponse>('/users'),
+    list: (query?: UsersListQuery) => {
+      const params = new URLSearchParams();
+      if (query?.role) params.set('role', query.role);
+      if (query?.search) params.set('search', query.search);
+      const qs = params.size ? `?${params}` : '';
+      return req<UsersListResponse>(`/users${qs}`);
+    },
     create: (body: CreateUserRequest) =>
       req<User>('/users', { method: 'POST', body: JSON.stringify(body) }),
     update: (id: number, body: UpdateUserRequest) =>

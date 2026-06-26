@@ -53,6 +53,12 @@ export type UserWithManager = z.infer<typeof UserWithManagerSchema>;
 export const UsersListResponseSchema = z.array(UserWithManagerSchema);
 export type UsersListResponse = z.infer<typeof UsersListResponseSchema>;
 
+export const UsersListQuerySchema = z.object({
+  role: z.enum(ROLES).optional(),
+  search: z.string().optional(),
+});
+export type UsersListQuery = z.infer<typeof UsersListQuerySchema>;
+
 export const ManageableRolesResponseSchema = z.object({
   roles: z.array(z.enum(ROLES)),
 });
