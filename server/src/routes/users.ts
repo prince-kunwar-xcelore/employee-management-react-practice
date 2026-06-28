@@ -1,5 +1,6 @@
 import { Router } from 'express';
 import bcrypt from 'bcryptjs';
+import { Prisma } from '@prisma/client';
 import {
   CreateUserRequestSchema,
   UpdateUserRequestSchema,
@@ -21,119 +22,150 @@ router.get('/meta/roles', (req, res) => {
 });
 
 router.get('/meta/stats', async (req, res) => {
-  const actorRole = req.session.role as Role;
-  const manageableRoles = getManageableRoles(actorRole);
+  try {
+    const actorRole = req.session.role as Role;
+    const manageableRoles = getManageableRoles(actorRole);
 
-  if (manageableRoles.length === 0) {
-    return res.json({ stats: {} });
+    if (manageableRoles.length === 0) {
+      return res.json({ stats: {} });
+    }
+
+    const counts = await prisma.user.groupBy({
+      by: ['role'],
+      _count: { id: true },
+      where: { role: { in: manageableRoles } },
+    });
+
+    const stats = Object.fromEntries(counts.map((r) => [r.role, r._count.id]));
+    res.json({ stats });
+  } catch (err) {
+    console.error('GET /meta/stats error:', err);
+    res.status(500).json({ error: 'Internal server error' });
   }
-
-  const counts = await prisma.user.groupBy({
-    by: ['role'],
-    _count: { id: true },
-    where: { role: { in: manageableRoles } },
-  });
-
-  const stats = Object.fromEntries(counts.map((r) => [r.role, r._count.id]));
-  res.json({ stats });
 });
 
 router.get('/', async (req, res) => {
-  const actorRole = req.session.role as Role;
-  const manageableRoles = getManageableRoles(actorRole);
+  try {
+    const actorRole = req.session.role as Role;
+    const manageableRoles = getManageableRoles(actorRole);
 
-  if (manageableRoles.length === 0) return res.json([]);
+    if (manageableRoles.length === 0) return res.json([]);
 
-  const parsed = UsersListQuerySchema.safeParse(req.query);
-  const { role, search } = parsed.success ? parsed.data : {};
+    const parsed = UsersListQuerySchema.safeParse(req.query);
+    const { role, search } = parsed.success ? parsed.data : {};
 
-  const roleFilter =
-    role && manageableRoles.includes(role) ? role : undefined;
+    const roleFilter =
+      role && manageableRoles.includes(role) ? role : undefined;
 
-  const users = await prisma.user.findMany({
-    where: {
-      role: roleFilter ? roleFilter : { in: manageableRoles },
-      ...(search && {
-        OR: [
-          { name: { contains: search, mode: 'insensitive' } },
-          { email: { contains: search, mode: 'insensitive' } },
-        ],
-      }),
-    },
-    include: { manager: { select: { id: true, name: true, role: true } } },
-  });
+    const users = await prisma.user.findMany({
+      where: {
+        role: roleFilter ? roleFilter : { in: manageableRoles },
+        ...(search && {
+          OR: [
+            { name: { contains: search, mode: 'insensitive' } },
+            { email: { contains: search, mode: 'insensitive' } },
+          ],
+        }),
+      },
+      include: { manager: { select: { id: true, name: true, role: true } } },
+    });
 
-  const result = users.map(({ password: _, createdAt, updatedAt, ...rest }) => ({
-    ...rest,
-    createdAt: createdAt.toISOString(),
-    updatedAt: updatedAt.toISOString(),
-  }));
+    const result = users.map(({ password: _, createdAt, updatedAt, ...rest }) => ({
+      ...rest,
+      createdAt: createdAt.toISOString(),
+      updatedAt: updatedAt.toISOString(),
+    }));
 
-  res.json(result);
+    res.json(result);
+  } catch (err) {
+    console.error('GET /users error:', err);
+    res.status(500).json({ error: 'Internal server error' });
+  }
 });
 
 router.post('/', async (req, res) => {
-  const parsed = CreateUserRequestSchema.safeParse(req.body);
-  if (!parsed.success) return res.status(400).json({ error: 'Invalid input' });
+  try {
+    const parsed = CreateUserRequestSchema.safeParse(req.body);
+    if (!parsed.success) return res.status(400).json({ error: 'Invalid input' });
 
-  const actorRole = req.session.role as Role;
-  if (!canManage(actorRole, parsed.data.role)) {
-    return res.status(403).json({ error: 'Forbidden' });
+    const actorRole = req.session.role as Role;
+    if (!canManage(actorRole, parsed.data.role)) {
+      return res.status(403).json({ error: 'Forbidden' });
+    }
+
+    const hashed = await bcrypt.hash(parsed.data.password, 10);
+    const user = await prisma.user.create({
+      data: { ...parsed.data, password: hashed },
+    });
+
+    const { password: _, createdAt, updatedAt, ...rest } = user;
+    res.status(201).json({ ...rest, createdAt: createdAt.toISOString(), updatedAt: updatedAt.toISOString() });
+  } catch (err) {
+    if (err instanceof Prisma.PrismaClientKnownRequestError && err.code === 'P2002') {
+      return res.status(409).json({ error: 'A user with that email already exists' });
+    }
+    console.error('POST /users error:', err);
+    res.status(500).json({ error: 'Internal server error' });
   }
-
-  const hashed = await bcrypt.hash(parsed.data.password, 10);
-  const user = await prisma.user.create({
-    data: { ...parsed.data, password: hashed },
-  });
-
-  const { password: _, createdAt, updatedAt, ...rest } = user;
-  res.status(201).json({ ...rest, createdAt: createdAt.toISOString(), updatedAt: updatedAt.toISOString() });
 });
 
 router.patch('/:id', async (req, res) => {
-  const id = parseInt(req.params.id);
-  if (isNaN(id)) return res.status(400).json({ error: 'Invalid id' });
+  try {
+    const id = parseInt(req.params.id);
+    if (isNaN(id)) return res.status(400).json({ error: 'Invalid id' });
 
-  const parsed = UpdateUserRequestSchema.safeParse(req.body);
-  if (!parsed.success) return res.status(400).json({ error: 'Invalid input' });
+    const parsed = UpdateUserRequestSchema.safeParse(req.body);
+    if (!parsed.success) return res.status(400).json({ error: 'Invalid input' });
 
-  const actorRole = req.session.role as Role;
-  const target = await prisma.user.findUnique({ where: { id } });
-  if (!target) return res.status(404).json({ error: 'User not found' });
+    const actorRole = req.session.role as Role;
+    const target = await prisma.user.findUnique({ where: { id } });
+    if (!target) return res.status(404).json({ error: 'User not found' });
 
-  if (!canManage(actorRole, target.role as Role)) {
-    return res.status(403).json({ error: 'Forbidden' });
+    if (!canManage(actorRole, target.role as Role)) {
+      return res.status(403).json({ error: 'Forbidden' });
+    }
+
+    if (parsed.data.role && !canManage(actorRole, parsed.data.role)) {
+      return res.status(403).json({ error: 'Forbidden' });
+    }
+
+    const { password, ...updateFields } = parsed.data;
+    const updateData = password
+      ? { ...updateFields, password: await bcrypt.hash(password, 10) }
+      : updateFields;
+
+    const updated = await prisma.user.update({ where: { id }, data: updateData });
+
+    const { password: _, createdAt, updatedAt, ...rest } = updated;
+    res.json({ ...rest, createdAt: createdAt.toISOString(), updatedAt: updatedAt.toISOString() });
+  } catch (err) {
+    if (err instanceof Prisma.PrismaClientKnownRequestError && err.code === 'P2002') {
+      return res.status(409).json({ error: 'A user with that email already exists' });
+    }
+    console.error('PATCH /users/:id error:', err);
+    res.status(500).json({ error: 'Internal server error' });
   }
-
-  if (parsed.data.role && !canManage(actorRole, parsed.data.role)) {
-    return res.status(403).json({ error: 'Forbidden' });
-  }
-
-  const { password, ...updateFields } = parsed.data;
-  const updateData = password
-    ? { ...updateFields, password: await bcrypt.hash(password, 10) }
-    : updateFields;
-
-  const updated = await prisma.user.update({ where: { id }, data: updateData });
-
-  const { password: _, createdAt, updatedAt, ...rest } = updated;
-  res.json({ ...rest, createdAt: createdAt.toISOString(), updatedAt: updatedAt.toISOString() });
 });
 
 router.delete('/:id', async (req, res) => {
-  const id = parseInt(req.params.id);
-  if (isNaN(id)) return res.status(400).json({ error: 'Invalid id' });
+  try {
+    const id = parseInt(req.params.id);
+    if (isNaN(id)) return res.status(400).json({ error: 'Invalid id' });
 
-  const actorRole = req.session.role as Role;
-  const target = await prisma.user.findUnique({ where: { id } });
-  if (!target) return res.status(404).json({ error: 'User not found' });
+    const actorRole = req.session.role as Role;
+    const target = await prisma.user.findUnique({ where: { id } });
+    if (!target) return res.status(404).json({ error: 'User not found' });
 
-  if (!canManage(actorRole, target.role as Role)) {
-    return res.status(403).json({ error: 'Forbidden' });
+    if (!canManage(actorRole, target.role as Role)) {
+      return res.status(403).json({ error: 'Forbidden' });
+    }
+
+    await prisma.user.delete({ where: { id } });
+    res.json({ ok: true });
+  } catch (err) {
+    console.error('DELETE /users/:id error:', err);
+    res.status(500).json({ error: 'Internal server error' });
   }
-
-  await prisma.user.delete({ where: { id } });
-  res.json({ ok: true });
 });
 
 export default router;
