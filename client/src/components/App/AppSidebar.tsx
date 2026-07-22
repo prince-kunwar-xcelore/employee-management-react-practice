@@ -8,12 +8,16 @@ import {
   SidebarMenuButton,
   SidebarMenuItem,
 } from '@/components/ui/sidebar';
+import { api } from '@/lib/api';
+import type { Role } from '@rbac/shared';
 import { User } from 'lucide-react';
+import { useEffect, useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 
 const routes: {
-  name?: string;
+  name: string;
   href: string;
+  access?: Role;
 }[] = [
   {
     name: 'Home',
@@ -26,19 +30,36 @@ const routes: {
   {
     name: 'Managers',
     href: '/managers',
+    access: 'manager',
   },
   {
     name: 'Team Leads',
     href: '/team-leads',
+    access: 'team_lead',
   },
   {
     name: 'Employees',
     href: '/employees',
+    access: 'employee',
   },
 ];
 
 export default function AppSidebar() {
   const location = useLocation();
+
+  const [accessibleRoles, setAccessibleRoles] = useState<Role[]>([]);
+
+  useEffect(() => {
+    api.users.manageableRoles().then((res) => {
+      setAccessibleRoles(res.roles);
+    });
+  }, []);
+
+  const accessibleRoutes = routes.filter((route) => {
+    if (!route.access) return true;
+    return accessibleRoles.includes(route.access);
+  });
+
   return (
     <Sidebar>
       <SidebarHeader>
@@ -52,7 +73,7 @@ export default function AppSidebar() {
       <SidebarContent>
         <SidebarGroup>
           <SidebarMenu>
-            {routes.map((route) => (
+            {accessibleRoutes.map((route) => (
               <SidebarMenuItem key={route.name}>
                 <SidebarMenuButton
                   asChild

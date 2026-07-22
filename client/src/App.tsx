@@ -3,6 +3,9 @@ import { useAuth } from './hooks/useAuth';
 import Login from './pages/Login';
 import Dashboard from './pages/Dashboard';
 import Shell from './layouts/shell';
+import About from './pages/About';
+import Users from './pages/users';
+import { Toaster } from '@/components/ui/sonner';
 
 function Protected({ children }: { children: React.ReactNode }) {
   const { user, loading } = useAuth();
@@ -36,15 +39,16 @@ export default function App() {
           }
         >
           <Route path="/" element={<Dashboard />} />
-          <Route path="/about" element={<Dashboard />} />
+          <Route path="/about" element={<About />} />
 
-          <Route path="/managers" element={<Dashboard />} />
+          <Route path="/managers" element={<Users role="manager" />} />
 
-          <Route path="/team-leads" element={<Dashboard />} />
+          <Route path="/team-leads" element={<Users role="team_lead" />} />
 
-          <Route path="/employees" element={<Dashboard />} />
+          <Route path="/employees" element={<Users role="employee" />} />
         </Route>
       </Routes>
+      <Toaster richColors theme="light" />
     </BrowserRouter>
   );
 }
