@@ -1,3 +1,4 @@
+import { ofetch, FetchError as OFetchError, type FetchOptions } from 'ofetch';
 import type {
   LoginRequest,
   LoginResponse,
@@ -10,42 +11,53 @@ import type {
   StatsResponse,
 } from '@rbac/shared';
 
-async function req<Res>(path: string, options?: RequestInit): Promise<Res> {
-  const res = await fetch(`/api${path}`, {
-    credentials: 'include',
-    headers: { 'Content-Type': 'application/json' },
-    ...options,
-  });
-  const data = await res.json();
-  if (!res.ok) throw new Error(data.error ?? 'Request failed');
-  return data;
+export class FetchError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = 'FetchError';
+  }
+}
+
+const client = ofetch.create({
+  baseURL: '/api',
+  credentials: 'include',
+  onResponseError({ response }) {
+    throw new FetchError(response._data?.error ?? 'Request failed');
+  },
+});
+
+async function req<Res>(
+  path: string,
+  options?: FetchOptions<'json'>,
+): Promise<Res> {
+  try {
+    return await client<Res>(path, options);
+  } catch (err) {
+    // Network errors (no response) never reach onResponseError.
+    if (err instanceof FetchError) throw err;
+    if (err instanceof OFetchError) {
+      throw new FetchError(err.data?.error ?? 'Request failed');
+    }
+    throw new FetchError('Request failed');
+  }
 }
 
 export const api = {
   auth: {
     login: (body: LoginRequest) =>
-      req<LoginResponse>('/auth/login', {
-        method: 'POST',
-        body: JSON.stringify(body),
-      }),
+      req<LoginResponse>('/auth/login', { method: 'POST', body }),
     logout: () => req<{ ok: true }>('/auth/logout', { method: 'POST' }),
     me: () => req<LoginResponse>('/auth/me'),
   },
   users: {
-    list: (query?: UsersListQuery) => {
-      const params = new URLSearchParams();
-      if (query?.role) params.set('role', query.role);
-      if (query?.search) params.set('search', query.search);
-      const qs = params.size ? `?${params}` : '';
-      return req<UsersListResponse>(`/users${qs}`);
-    },
-    create: (body: CreateUserRequest) =>
-      req<User>('/users', { method: 'POST', body: JSON.stringify(body) }),
-    update: (id: number, body: UpdateUserRequest) =>
-      req<User>(`/users/${id}`, {
-        method: 'PATCH',
-        body: JSON.stringify(body),
+    list: (query?: UsersListQuery) =>
+      req<UsersListResponse>('/users', {
+        query: { role: query?.role, search: query?.search },
       }),
+    create: (body: CreateUserRequest) =>
+      req<User>('/users', { method: 'POST', body }),
+    update: (id: number, body: UpdateUserRequest) =>
+      req<User>(`/users/${id}`, { method: 'PATCH', body }),
     delete: (id: number) =>
       req<{ ok: true }>(`/users/${id}`, { method: 'DELETE' }),
     manageableRoles: () => req<ManageableRolesResponse>('/users/meta/roles'),
