@@ -52,7 +52,12 @@ export const api = {
   users: {
     list: (query?: UsersListQuery) =>
       req<UsersListResponse>('/users', {
-        query: { role: query?.role, search: query?.search },
+        query: {
+          role: query?.role,
+          search: query?.search,
+          page: query?.page,
+          pageSize: query?.pageSize,
+        },
       }),
     create: (body: CreateUserRequest) =>
       req<User>('/users', { method: 'POST', body }),
