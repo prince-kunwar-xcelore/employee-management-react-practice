@@ -49,34 +49,44 @@ router.get('/', async (req, res) => {
     const actorRole = req.session.role as Role;
     const manageableRoles = getManageableRoles(actorRole);
 
-    if (manageableRoles.length === 0) return res.json([]);
+    if (manageableRoles.length === 0) return res.json({ data: [], total: 0 });
 
     const parsed = UsersListQuerySchema.safeParse(req.query);
-    const { role, search } = parsed.success ? parsed.data : {};
+    const { role, search, page = 1, pageSize = 10 } = parsed.success
+      ? parsed.data
+      : {};
 
     const roleFilter =
       role && manageableRoles.includes(role) ? role : undefined;
 
-    const users = await prisma.user.findMany({
-      where: {
-        role: roleFilter ? roleFilter : { in: manageableRoles },
-        ...(search && {
-          OR: [
-            { name: { contains: search, mode: 'insensitive' } },
-            { email: { contains: search, mode: 'insensitive' } },
-          ],
-        }),
-      },
-      include: { manager: { select: { id: true, name: true, role: true } } },
-    });
+    const where: Prisma.UserWhereInput = {
+      role: roleFilter ? roleFilter : { in: manageableRoles },
+      ...(search && {
+        OR: [
+          { name: { contains: search, mode: 'insensitive' } },
+          { email: { contains: search, mode: 'insensitive' } },
+        ],
+      }),
+    };
 
-    const result = users.map(({ password: _, createdAt, updatedAt, ...rest }) => ({
+    const [users, total] = await Promise.all([
+      prisma.user.findMany({
+        where,
+        include: { manager: { select: { id: true, name: true, role: true } } },
+        orderBy: { id: 'asc' },
+        skip: (page - 1) * pageSize,
+        take: pageSize,
+      }),
+      prisma.user.count({ where }),
+    ]);
+
+    const data = users.map(({ password: _, createdAt, updatedAt, ...rest }) => ({
       ...rest,
       createdAt: createdAt.toISOString(),
       updatedAt: updatedAt.toISOString(),
     }));
 
-    res.json(result);
+    res.json({ data, total });
   } catch (err) {
     console.error('GET /users error:', err);
     res.status(500).json({ error: 'Internal server error' });

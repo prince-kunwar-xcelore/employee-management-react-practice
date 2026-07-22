@@ -31,6 +31,8 @@ export const api = {
         query: {
           role: query?.role,
           search: query?.search,
+          page: query?.page,
+          pageSize: query?.pageSize,
         },
       }),
     create: (body: CreateUserRequest) =>

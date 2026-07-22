@@ -50,12 +50,18 @@ export const UserWithManagerSchema = UserSchema.extend({
 });
 export type UserWithManager = z.infer<typeof UserWithManagerSchema>;
 
-export const UsersListResponseSchema = z.array(UserWithManagerSchema);
+export const UsersListResponseSchema = z.object({
+  data: z.array(UserWithManagerSchema),
+  total: z.number(),
+});
 export type UsersListResponse = z.infer<typeof UsersListResponseSchema>;
 
 export const UsersListQuerySchema = z.object({
   role: z.enum(ROLES).optional(),
   search: z.string().optional(),
+  // Coerced because they arrive as query strings; defaults applied server-side.
+  page: z.coerce.number().int().min(1).optional(),
+  pageSize: z.coerce.number().int().min(1).max(100).optional(),
 });
 export type UsersListQuery = z.infer<typeof UsersListQuerySchema>;
 
