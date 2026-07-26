@@ -19,12 +19,13 @@ import { useForm } from '@tanstack/react-form';
 
 import z from 'zod';
 import type { Role, User } from '@rbac/shared';
-import { api, FetchError } from '@/lib/api';
+import { api } from '@/lib/api';
 import { Button } from './ui/button';
 
 import { toast } from 'sonner';
 import { Combobox } from './ui/combobox';
 import { useEffect, useState } from 'react';
+import { handleError } from '@/helpers/error-handler';
 
 const createUserSchema = z.object({
   name: z.string().nonempty(),
@@ -95,11 +96,7 @@ export default function UserCreateDialog({
         toast.success('User created successfully');
         onUpdate();
       } catch (err) {
-        if (err instanceof FetchError) {
-          return toast.error(err.message);
-        }
-        toast.error('Something went wrong');
-        throw err;
+        handleError(err);
       }
     },
   });

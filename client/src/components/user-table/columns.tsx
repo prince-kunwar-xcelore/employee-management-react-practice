@@ -15,7 +15,7 @@ import {
 import { ROLE_LABELS, type UserWithManager } from '@rbac/shared';
 import { api } from '@/lib/api';
 import { toast } from 'sonner';
-import { FetchError } from 'ofetch';
+import { handleError } from '@/helpers/error-handler';
 
 export type Payment = {
   id: string;
@@ -61,10 +61,7 @@ export const getColumns = (handlers: {
               toast.success('User removed successfully');
               handlers.onDeleteUser(user.id);
             } catch (err) {
-              if (err instanceof FetchError) {
-                toast.error(err.message || 'Failed to remove user');
-              }
-              toast.error('Something went wrong');
+              handleError(err);
             }
           }
         };
