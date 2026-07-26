@@ -63,8 +63,8 @@ router.get('/', async (req, res) => {
       role: roleFilter ? roleFilter : { in: manageableRoles },
       ...(search && {
         OR: [
-          { name: { contains: search, mode: 'insensitive' } },
-          { email: { contains: search, mode: 'insensitive' } },
+          { name: { contains: search } },
+          { email: { contains: search } },
         ],
       }),
     };
