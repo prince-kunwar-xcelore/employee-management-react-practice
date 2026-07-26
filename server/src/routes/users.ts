@@ -11,6 +11,7 @@ import {
 import type { Role } from '@rbac/shared';
 import { requireAuth } from '../middleware/auth';
 import { prisma } from '../lib/prisma';
+import { selectManagerId } from '../lib/assignManager';
 
 const router = Router();
 
@@ -104,8 +105,12 @@ router.post('/', async (req, res) => {
     }
 
     const hashed = await bcrypt.hash(parsed.data.password, 10);
+    // Auto-assign a manager when the caller didn't pick one: the least-loaded
+    // senior (one level up, climbing if that level is empty).
+    const managedBy =
+      parsed.data.managedBy ?? (await selectManagerId(parsed.data.role));
     const user = await prisma.user.create({
-      data: { ...parsed.data, password: hashed },
+      data: { ...parsed.data, managedBy: managedBy ?? null, password: hashed },
     });
 
     const { password: _, createdAt, updatedAt, ...rest } = user;
