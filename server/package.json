@@ -4,7 +4,8 @@
   "scripts": {
     "dev": "bun --hot src/index.ts",
     "start": "bun src/index.ts",
-    "seed": "bun src/lib/seed.ts"
+    "seed": "bun src/lib/seed.ts",
+    "backfill:managed-by": "bun src/lib/backfill-managed-by.ts"
   },
   "dependencies": {
     "@libsql/client": "^0.17.3",
